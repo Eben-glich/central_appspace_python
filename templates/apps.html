@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Dashboard</title>
+    <style>
+        /* Base Variables (Default Black Theme) */
+        :root {
+            --bg-color: #000000; --text-color: #e4e4e7; --card-bg: #111111;
+            --border: 1px solid #222; --accent: #3b82f6;
+            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --radius: 18px;
+        }
+
+        /* Secret White Theme */
+        body.theme-light {
+            --bg-color: #ffffff; --text-color: #121212; --card-bg: #f9fafb;
+            --border: 1px solid #e5e7eb; --accent: #2563eb;
+        }
+
+        /* Secret 1980s Synthwave Theme */
+        body.theme-retro {
+            --bg-color: #120424;
+            --text-color: #00ffff;
+            --card-bg: #240b36;
+            --border: 2px dashed #ff00ff;
+            --accent: #ff00ff;
+            --font: 'Courier New', Courier, monospace;
+            --radius: 0px;
+        }
+
+        body.theme-retro * { text-transform: uppercase; }
+        body.theme-retro h1 { color: #ff00ff; text-shadow: 3px 3px 0px #00ffff; }
+        body.theme-retro .app-card:hover { border-color: #ffff00; box-shadow: 0 0 20px #ffff00; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font); transition: background 0.3s, color 0.3s; }
+        body { background-color: var(--bg-color); color: var(--text-color); padding: 40px 20px; }
+
+        header {
+            max-width: 1000px; margin: 0 auto 40px auto;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        h1 { font-size: 2.2rem; }
+
+        .lock-btn {
+            background: transparent; color: var(--text-color); border: var(--border);
+            padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 0.9rem;
+        }
+        .lock-btn:hover { border-color: var(--accent); }
+
+        .app-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 25px; max-width: 1000px; margin: 0 auto;
+        }
+
+        /* Converted to support native <a> link navigation */
+        .app-card {
+            background: var(--card-bg); border: var(--border); border-radius: var(--radius);
+            padding: 22px 15px; text-align: center; cursor: pointer;
+            display: block; text-decoration: none; color: inherit;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .app-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+        .app-logo { width: 70px; height: 70px; border-radius: 16px; margin: 0 auto 12px auto; display: block; }
+        .app-name { font-size: 1rem; font-weight: 600; word-break: break-word; }
+        .app-url-preview { font-size: 0.75rem; opacity: 0.5; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Custom Modal for Adding Apps */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.75); display: none; justify-content: center; align-items: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: var(--card-bg); border: var(--border); border-radius: var(--radius);
+            padding: 30px; width: 100%; max-width: 380px; text-align: center;
+        }
+        .modal-box h2 { margin-bottom: 20px; font-size: 1.4rem; }
+        .modal-input {
+            width: 100%; padding: 12px 15px; margin-bottom: 14px; font-size: 0.95rem;
+            background: rgba(125,125,125,0.1); color: var(--text-color);
+            border: var(--border); border-radius: var(--radius); outline: none; text-align: center;
+        }
+        .modal-input:focus { border-color: var(--accent); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .modal-btn {
+            flex: 1; padding: 12px; border-radius: var(--radius); border: var(--border);
+            cursor: pointer; font-weight: bold; background: var(--accent); color: #fff;
+        }
+        .modal-btn.cancel { background: transparent; color: var(--text-color); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1 id="userGreeting">Applications</h1>
+        </div>
+        <button class="lock-btn" id="lockBtn">Lock Session</button>
+    </header>
+
+    <div class="app-grid" id="appGrid"></div>
+
+    <!-- Modal for Adding Apps -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal-box">
+            <h2>Add New Application</h2>
+            <input type="text" id="newAppName" class="modal-input" placeholder="App Name (e.g. YouTube)" autocomplete="off">
+            <input type="text" id="newAppUrl" class="modal-input" placeholder="Website URL (e.g. youtube.com)" autocomplete="off">
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="cancelModalBtn">Cancel</button>
+                <button class="modal-btn" id="saveAppBtn">Add App</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTHENTICATION CHECK ---
+        const userData = JSON.parse(localStorage.getItem('sys_user_data'));
+        if (!userData) {
+            window.location.href = '/';
+        } else {
+            document.getElementById('userGreeting').innerText = `Welcome, ${userData.user}`;
+        }
+
+        // --- THEME MANAGER ---
+        function applyTheme(theme) {
+            document.body.className = `theme-${theme}`;
+            localStorage.setItem('secret_theme', theme);
+        }
+        applyTheme(localStorage.getItem('secret_theme') || 'dark');
+
+        // --- DYNAMIC SVG ICON GENERATOR ---
+        function generateSvgIcon(name) {
+            const colors = [
+                ['#ec4899', '#8b5cf6'], ['#3b82f6', '#1d4ed8'],
+                ['#10b981', '#047857'], ['#f59e0b', '#b45309'],
+                ['#6366f1', '#4338ca'], ['#14b8a6', '#0f766e']
+            ];
+            const pair = colors[Math.floor(Math.random() * colors.length)];
+            const letter = name.charAt(0).toUpperCase();
+
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                <defs>
+                    <linearGradient id="grad-${letter}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="${pair[0]}" />
+                        <stop offset="100%" stop-color="${pair[1]}" />
+                    </linearGradient>
+                </defs>
+                <rect width="100" height="100" rx="22" fill="url(#grad-${letter})" />
+                <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-size="45" font-weight="bold" font-family="sans-serif">${letter}</text>
+            </svg>`;
+
+            return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+        }
+
+        // --- APP STORAGE & RENDER LOGIC ---
+        const defaultApps = [
+            { name: 'Google Mail', url: 'https://mail.google.com', logo: generateSvgIcon('Google Mail') },
+            { name: 'Google Drive', url: 'https://drive.google.com', logo: generateSvgIcon('Google Drive') },
+            { name: 'YouTube', url: 'https://youtube.com', logo: generateSvgIcon('YouTube') }
+        ];
+
+        function getSavedApps() {
+            const data = localStorage.getItem('local_apps_list');
+            return data ? JSON.parse(data) : defaultApps;
+        }
+
+        function renderApps() {
+            const apps = getSavedApps();
+            const grid = document.getElementById('appGrid');
+            grid.innerHTML = '';
+
+            apps.forEach((app) => {
+                // Render as an authentic <a> element to bypass pop-up blockers
+                const card = document.createElement('a');
+                card.className = 'app-card';
+                card.href = app.url;
+                card.target = '_blank';
+                card.rel = 'noopener noreferrer';
+
+                card.innerHTML = `
+                    <img src="${app.logo}" class="app-logo">
+                    <div class="app-name">${app.name}</div>
+                    <div class="app-url-preview">${app.url.replace(/^https?:\/\//i, '')}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- MODAL & APP CREATION ---
+        const addModal = document.getElementById('addModal');
+        const newAppName = document.getElementById('newAppName');
+        const newAppUrl = document.getElementById('newAppUrl');
+
+        function openModal() {
+            addModal.classList.add('active');
+            newAppName.value = '';
+            newAppUrl.value = '';
+            setTimeout(() => newAppName.focus(), 50);
+        }
+
+        function closeModal() {
+            addModal.classList.remove('active');
+        }
+
+        function saveApp() {
+            const name = newAppName.value.trim();
+            let url = newAppUrl.value.trim();
+
+            if (!name) {
+                alert("Please enter an application name.");
+                return;
+            }
+
+            // Auto-format URL if omitted or missing protocol
+            if (!url) {
+                url = `https://${name.toLowerCase().replace(/\s+/g, '')}.com`;
+            } else if (!/^https?:\/\//i.test(url)) {
+                url = `https://${url}`;
+            }
+
+            const apps = getSavedApps();
+            if (apps.some(a => a.name.toLowerCase() === name.toLowerCase())) {
+                alert(`An app named "${name}" already exists.`);
+                return;
+            }
+
+            apps.push({ name: name, url: url, logo: generateSvgIcon(name) });
+            localStorage.setItem('local_apps_list', JSON.stringify(apps));
+            renderApps();
+            closeModal();
+        }
+
+        // --- KEYBOARD LISTENERS ---
+        document.addEventListener('keydown', function(event) {
+            // Disable keybind triggers while typing inside input fields
+            if (document.activeElement.tagName === 'INPUT') {
+                if (event.key === 'Enter') saveApp();
+                if (event.key === 'Escape') closeModal();
+                return;
+            }
+
+            const key = event.key.toLowerCase();
+            if (key === 'a') {
+                event.preventDefault();
+                openModal();
+            }
+            else if (key === 'w') applyTheme('light');
+            else if (key === 'd') applyTheme('dark');
+            else if (key === 'r') applyTheme('retro');
+        });
+
+        document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+        document.getElementById('saveAppBtn').addEventListener('click', saveApp);
+        document.getElementById('lockBtn').addEventListener('click', () => window.location.href = '/');
+
+        renderApps();
+    </script>
+</body>
+</html>
