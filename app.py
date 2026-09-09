@@ -1,1 +1,18 @@
-from flask import Flask, render_template\nfrom flask_cors import CORS\nimport os\n\napp = Flask(__name__)\nCORS(app)\n\n@app.route('/')\ndef index():\n    \"\"\"Serve login/registration page\"\"\"\n    return render_template('index.html')\n\n@app.route('/apps')\ndef apps():\n    \"\"\"Serve app dashboard page\"\"\"\n    return render_template('apps.html')\n\nif __name__ == '__main__':\n    app.run(debug=True, port=5000)\n
+from flask import Flask, render_template
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/')
+def index():
+    """Serve login/registration page"""
+    return render_template('index.html')
+
+@app.route('/apps')
+def apps():
+    """Serve app dashboard page"""
+    return render_template('apps.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
