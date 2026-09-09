@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Access</title>
+    <style>
+        /* Base Variables (Default Black Theme) */
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --box-bg: rgba(20, 20, 20, 0.9);
+            --border: 1px solid #333;
+            --btn-bg: #3b82f6;
+            --btn-text: #ffffff;
+            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --radius: 16px;
+            --glow: 0 10px 40px rgba(255, 255, 255, 0.08);
+            --input-bg: rgba(255, 255, 255, 0.06);
+            --error-color: #ef4444;
+        }
+
+        /* Secret White Theme */
+        body.theme-light {
+            --bg-color: #f3f4f6;
+            --text-color: #111827;
+            --box-bg: rgba(255, 255, 255, 0.95);
+            --border: 1px solid #e5e7eb;
+            --btn-bg: #2563eb;
+            --glow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --input-bg: rgba(0, 0, 0, 0.04);
+        }
+
+        /* Secret 1980s Synthwave Theme */
+        body.theme-retro {
+            --bg-color: #120424;
+            --text-color: #00ffff;
+            --box-bg: rgba(36, 11, 54, 0.95);
+            --border: 2px solid #ff00ff;
+            --btn-bg: #ff00ff;
+            --btn-text: #000000;
+            --font: 'Courier New', Courier, monospace;
+            --radius: 0px;
+            --glow: 0 0 20px rgba(255, 0, 255, 0.4);
+            --input-bg: rgba(0, 255, 255, 0.1);
+            --error-color: #ffff00;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: var(--font); transition: background 0.3s, color 0.3s, border 0.3s, box-shadow 0.3s;
+        }
+
+        body {
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; background-color: var(--bg-color); color: var(--text-color);
+            overflow: hidden;
+        }
+
+        body.theme-retro * { text-transform: uppercase; }
+        body.theme-retro h1 {
+            color: #ff00ff;
+            text-shadow: 3px 3px 0px #00ffff;
+            letter-spacing: 2px;
+        }
+
+        .login-box {
+            background: var(--box-bg); padding: 45px 40px; border-radius: var(--radius);
+            border: var(--border); box-shadow: var(--glow); text-align: center;
+            width: 100%; max-width: 400px;
+        }
+
+        h1 { font-size: 2.2rem; margin-bottom: 10px; }
+
+        #statusText {
+            font-size: 0.95rem; margin-bottom: 22px; opacity: 0.85; min-height: 40px;
+            display: flex; align-items: center; justify-content: center; line-height: 1.3;
+        }
+
+        .system-input {
+            width: 100%; padding: 14px 18px; font-size: 1.05rem;
+            background: var(--input-bg); color: var(--text-color);
+            border: var(--border); border-radius: var(--radius);
+            outline: none; text-align: center; margin-bottom: 18px;
+        }
+        .system-input:focus { border-color: var(--btn-bg); }
+
+        body.theme-retro .system-input { border-radius: 0; border: 1px dashed #00ffff; }
+
+        .submit-btn {
+            background: var(--btn-bg); color: var(--btn-text); border: var(--border);
+            padding: 14px; font-size: 1.05rem; font-weight: bold; width: 100%;
+            border-radius: var(--radius); cursor: pointer;
+        }
+
+        body.theme-retro .submit-btn { box-shadow: 0 0 15px #ff00ff; font-weight: 900; }
+        body.theme-retro .submit-btn:hover { background: #00ffff; border-color: #00ffff; color: #000; }
+        .submit-btn:hover { filter: brightness(1.15); }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box" id="loginCard">
+        <h1 id="mainTitle">Welcome</h1>
+        <p id="statusText">Initializing...</p>
+
+        <input type="text" id="sysInput" class="system-input" placeholder="Username" autocomplete="off" autofocus>
+        <button class="submit-btn" id="actionBtn">Continue</button>
+    </div>
+
+    <script>
+        // --- SECRET THEMES ---
+        function applyTheme(theme) {
+            document.body.className = `theme-${theme}`;
+            localStorage.setItem('secret_theme', theme);
+        }
+        applyTheme(localStorage.getItem('secret_theme') || 'dark');
+
+        document.addEventListener('keydown', function(event) {
+            if (document.activeElement.tagName === 'INPUT') return;
+            const key = event.key.toLowerCase();
+            if (key === 'w') applyTheme('light');
+            if (key === 'd') applyTheme('dark');
+            if (key === 'r') applyTheme('retro');
+        });
+
+        // --- AUTHENTICATION STATE MACHINE ---
+        const sysInput = document.getElementById('sysInput');
+        const statusText = document.getElementById('statusText');
+        const mainTitle = document.getElementById('mainTitle');
+        const actionBtn = document.getElementById('actionBtn');
+        const loginCard = document.getElementById('loginCard');
+
+        const savedUser = JSON.parse(localStorage.getItem('sys_user_data'));
+        const isNewUser = !savedUser;
+        let step = 0; // 0 = Username, 1 = Password, 2 = Confirm Password
+
+        let tempUsername = '';
+        let tempPassword = '';
+
+        function initUI() {
+            if (isNewUser) {
+                mainTitle.innerText = "Create Account";
+                statusText.innerText = "Please choose a Username to get started.";
+                sysInput.placeholder = "Enter Username";
+            } else {
+                mainTitle.innerText = "Welcome Back";
+                statusText.innerText = "Enter your Username to sign in.";
+                sysInput.placeholder = "Enter Username";
+            }
+        }
+
+        function showError(message) {
+            statusText.innerText = message;
+            statusText.style.color = "var(--error-color)";
+            loginCard.classList.remove('shake');
+            void loginCard.offsetWidth;
+            loginCard.classList.add('shake');
+            sysInput.value = '';
+            sysInput.focus();
+        }
+
+        function processInput() {
+            const val = sysInput.value.trim();
+            statusText.style.color = "var(--text-color)";
+
+            if (!val) {
+                showError("Input cannot be blank.");
+                return;
+            }
+
+            if (isNewUser) {
+                // REGISTRATION
+                if (step === 0) {
+                    tempUsername = val;
+                    step = 1;
+                    sysInput.value = '';
+                    sysInput.type = 'password';
+                    sysInput.placeholder = 'Enter Password';
+                    statusText.innerText = `Username "${tempUsername}" set. Now choose a Password.`;
+                } else if (step === 1) {
+                    tempPassword = val;
+                    step = 2;
+                    sysInput.value = '';
+                    sysInput.placeholder = 'Confirm Password';
+                    statusText.innerText = "Please confirm your Password.";
+                } else if (step === 2) {
+                    if (val === tempPassword) {
+                        localStorage.setItem('sys_user_data', JSON.stringify({ user: tempUsername, pass: tempPassword }));
+                        statusText.innerText = "Account created! Redirecting...";
+                        statusText.style.color = "#10b981";
+                        sysInput.style.display = 'none';
+                        actionBtn.style.display = 'none';
+                        setTimeout(() => window.location.href = '/apps', 800);
+                    } else {
+                        step = 1;
+                        sysInput.type = 'password';
+                        sysInput.placeholder = 'Enter Password';
+                        showError("Passwords did not match. Enter Password again.");
+                    }
+                }
+            } else {
+                // LOGIN
+                if (step === 0) {
+                    if (val.toLowerCase() === savedUser.user.toLowerCase()) {
+                        step = 1;
+                        sysInput.value = '';
+                        sysInput.type = 'password';
+                        sysInput.placeholder = 'Enter Password';
+                        statusText.innerText = `Hello ${savedUser.user}, enter your Password.`;
+                    } else {
+                        showError("Username not found. Try again.");
+                    }
+                } else if (step === 1) {
+                    if (val === savedUser.pass) {
+                        statusText.innerText = "Access Granted! Loading dashboard...";
+                        statusText.style.color = "#10b981";
+                        sysInput.style.display = 'none';
+                        actionBtn.style.display = 'none';
+                        setTimeout(() => window.location.href = '/apps', 800);
+                    } else {
+                        showError("Incorrect Password. Try again.");
+                    }
+                }
+            }
+        }
+
+        sysInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') processInput(); });
+        actionBtn.addEventListener('click', processInput);
+        initUI();
+    </script>
+</body>
+</html>
